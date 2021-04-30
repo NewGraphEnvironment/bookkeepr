@@ -1,0 +1,98 @@
+---
+title: "tax prep"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(knitr)
+
+
+```
+
+## Load up the bookeeping 
+
+```{r}
+bk <-  readr::read_csv('data/bookeeping.csv',
+  col_types = cols(
+  .default = col_character(),
+  date = col_date(),
+  sort = col_double(),
+  check_number = col_double(),
+  withdrawal = col_double(),
+  deposit = col_double(),
+  balance = col_double(),
+  invoice_out_net = col_double(),
+  invoice_in_gross = col_double(),
+  invoice_in_net = col_double(),
+  gst_in = col_double(),
+  gst_out = col_double()
+)) 
+```
+
+Summarize by expense type
+```{r}
+expenses_raw <- bk %>% 
+  filter(!is.na(expense_type)) %>% 
+  mutate(invoice_in_net = case_when(
+    is.na(invoice_in_net) ~ withdrawal,
+    T ~ invoice_in_net
+  )) %>% 
+  mutate(invoice_in_net = case_when(
+    expense_type == 'sales' ~ invoice_out_net,
+    T ~ invoice_in_net
+  )) 
+
+
+expenses <- expenses_raw %>% 
+  group_by(expense_type) %>% 
+  summarise(sum = sum(invoice_in_net))
+
+knitr::kable(expenses)
+```
+
+
+Calculate GST for the year
+```{r}
+gst <- bk %>% 
+  select(date, gst_in, gst_out) %>% 
+  janitor::adorn_totals() %>% 
+  mutate(diff = gst_in - gst_out) %>% 
+  filter(!is.na(gst_in) | !is.na(gst_out))
+
+knitr::kable(gst)
+```
+
+
+Summarize the equipment purchased
+```{r}
+equipment_in <- expenses_raw %>% 
+  filter(expense_type == 'equipment' & invoice_in_net > 0) %>% 
+  select(date, invoice_in_net, expense_type_sub, asset_class) %>% 
+  janitor::adorn_totals()
+
+knitr::kable(equipment_in)
+```
+
+
+Summarize equipment sold
+```{r}
+equipment_out <- expenses_raw %>% 
+  filter(expense_type == 'equipment' & invoice_in_net < 0) %>% 
+  select(date, invoice_in_net, expense_type_sub, asset_class) %>% 
+  janitor::adorn_totals()
+
+knitr::kable(equipment_out)
+```
+
+Summarize your vehicle expenses
+```{r}
+vehicle <- expenses_raw %>% 
+  filter(expense_type == 'vehicle') %>% 
+  group_by(expense_type_sub) %>% 
+  summarise(sum = sum(invoice_in_net))
+```
+
