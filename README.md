@@ -1,2 +1,2 @@
 # bookkeepr
-A package to manipulate bookkeeping spreadsheets for taxes and business analysis
+Some scripts to manipulate bookkeeping spreadsheets for taxes and business analysis
